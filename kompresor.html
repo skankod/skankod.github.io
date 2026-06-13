@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kompresor obrazów</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#000;
+  --panel:rgba(255,255,255,0.04);
+  --text:#fff;
+  --muted:rgba(255,255,255,0.6);
+  --primary:#7c6cff;
+  --error:#ff5c5c;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Inter;
+  background:var(--bg);
+  color:var(--text);
+}
+
+/* PROGRESS */
+.progress{
+  position:fixed;
+  top:0;
+  left:0;
+  height:.35rem;
+  width:0%;
+  background:var(--primary);
+  z-index:999;
+  transition:.3s;
+}
+
+.back{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:42px;
+  height:42px;
+  border-radius:12px;
+  background:#111;
+  border:1px solid rgba(255,255,255,0.1);
+  color:#fff;
+  text-decoration:none;
+  font-size:18px;
+  margin-bottom:12px;
+  transition:.2s;
+}
+
+.back:hover{
+  transform:translateX(-3px);
+  background:#1a1a1a;
+}
+
+.wrapper{
+  display:flex;
+  min-height:100vh;
+}
+
+/* PANEL */
+.panel{
+  width:420px;
+  padding:1.5rem;
+  background:var(--panel);
+  border-right:1px solid rgba(255,255,255,0.08);
+  display:flex;
+  flex-direction:column;
+  gap:1rem;
+}
+
+.section{display:flex; flex-direction:column; gap:.4rem;}
+
+.section-title{
+  font-size:.7rem;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  color:var(--muted);
+}
+
+input, select{
+  width:100%;
+  padding:.7rem;
+  border-radius:.8rem;
+  border:1px solid rgba(255,255,255,0.08);
+  background:#111;
+  color:#fff;
+}
+
+/* BUTTON */
+.btn{
+  padding:.9rem;
+  border:none;
+  border-radius:.8rem;
+  background:var(--primary);
+  color:#fff;
+  cursor:pointer;
+}
+
+.btn-group{
+  display:flex;
+  flex-direction:column;
+  gap:.5rem;
+}
+
+/* PREVIEW */
+.preview{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:2rem;
+}
+
+/* DROP */
+.dropzone{
+  width:100%;
+  max-width:34rem;
+  height:16rem;
+  border:2px dashed rgba(255,255,255,0.2);
+  border-radius:1rem;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  cursor:pointer;
+  background:#0f0f0f;
+  transition:.2s;
+}
+
+.dropzone.drag{
+  border-color:var(--primary);
+  background:rgba(124,108,255,0.08);
+}
+
+/* IMAGE */
+.image-wrap{
+  position:relative;
+  transition:.35s;
+}
+
+.image-wrap.hide{
+  opacity:0;
+  transform:scale(.9);
+}
+
+/* IMAGE */
+img{
+  max-width:80vw;
+  max-height:55vh;
+  border-radius:1rem;
+}
+
+/* RESET */
+.reset{
+  position:absolute;
+  top:-1rem;
+  right:-1rem;
+  width:2.6rem;
+  height:2.6rem;
+  border-radius:50%;
+  background:var(--primary);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+
+/* INFO */
+.stats{
+  margin-top:1rem;
+  font-size:.9rem;
+  color:var(--muted);
+  text-align:center;
+}
+
+body {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+body.loaded {
+  opacity: 1;
+}
+
+body.fade-out {
+  opacity: 0;
+}
+
+.error{color:var(--error);}
+
+/* MOBILE */
+@media (max-width:900px){
+  .wrapper{flex-direction:column;}
+  .panel{width:100%; border-bottom:1px solid rgba(255,255,255,0.08);}
+}
+
+@media (max-width:500px){
+  img{max-height:35vh;}
+}
+</style>
+</head>
+
+<body>
+
+<div class="progress" id="progress"></div>
+
+<div class="wrapper">
+
+<div class="panel">
+
+<a href="index.html" class="back">←</a>
+
+<h2>Kompresor Obrazów</h2>
+
+<div class="section">
+  <div class="section-title">Tryb</div>
+  <select id="mode">
+    <option value="visual">Bez widocznej straty</option>
+    <option value="manual">Ręczna</option>
+    <option value="target">Docelowy rozmiar</option>
+  </select>
+</div>
+
+<div id="manualWrap" class="section" style="display:none;">
+  <div class="section-title">Jakość</div>
+  <input type="range" id="quality" min="10" max="100" value="80">
+</div>
+
+<div id="targetWrap" class="section" style="display:none;">
+  <div class="section-title">KB</div>
+  <input type="number" id="targetSize">
+</div>
+
+<button class="btn" id="compressBtn">Kompresuj</button>
+
+<div class="btn-group" id="downloadGroup" style="display:none;">
+  <button class="btn" id="downloadJPG">Pobierz JPG</button>
+  <button class="btn" id="downloadPNG">Pobierz PNG</button>
+  <button class="btn" id="downloadWEBP">Pobierz WebP</button>
+</div>
+
+</div>
+
+<div class="preview">
+
+<div class="dropzone" id="drop">
+  Przeciągnij obraz lub kliknij
+  <input type="file" id="file" accept="image/*" hidden>
+</div>
+
+<div class="image-wrap" id="imageWrap" style="display:none;">
+  <img id="imgPreview">
+  <div class="reset" id="resetBtn">+</div>
+</div>
+
+<div class="stats" id="stats"></div>
+
+</div>
+
+</div>
+
+<script>
+const drop=document.getElementById("drop");
+const fileInput=document.getElementById("file");
+const imgPreview=document.getElementById("imgPreview");
+const stats=document.getElementById("stats");
+const progress=document.getElementById("progress");
+const imageWrap=document.getElementById("imageWrap");
+const resetBtn=document.getElementById("resetBtn");
+
+const mode=document.getElementById("mode");
+const manualWrap=document.getElementById("manualWrap");
+const targetWrap=document.getElementById("targetWrap");
+const downloadGroup=document.getElementById("downloadGroup");
+
+let originalFile, compressedBlob;
+
+/* MODE */
+mode.onchange=()=>{
+  manualWrap.style.display=mode.value==="manual"?"block":"none";
+  targetWrap.style.display=mode.value==="target"?"block":"none";
+};
+
+/* CLICK */
+drop.onclick=()=>fileInput.click();
+fileInput.onchange=e=>loadFile(e.target.files[0]);
+
+/* 🔥 DRAG FIX */
+drop.ondragover=e=>{
+  e.preventDefault();
+  drop.classList.add("drag");
+};
+
+drop.ondragleave=()=>drop.classList.remove("drag");
+
+drop.ondrop=e=>{
+  e.preventDefault();
+  drop.classList.remove("drag");
+  loadFile(e.dataTransfer.files[0]);
+};
+
+async function loadFile(file){
+  if(!file) return;
+  originalFile=file;
+
+  imgPreview.src=URL.createObjectURL(file);
+
+  drop.style.display="none";
+  imageWrap.style.display="block";
+
+  stats.innerHTML=`Rozmiar: <b>${(file.size/1024).toFixed(1)} KB</b>`;
+}
+
+/* TARGET */
+async function compressToTarget(canvas,targetKB){
+  let min=0.05, max=0.95, blob;
+
+  for(let i=0;i<20;i++){
+    let q=(min+max)/2;
+    blob=await new Promise(r=>canvas.toBlob(r,"image/webp",q));
+    if(blob.size/1024 > targetKB) max=q;
+    else min=q;
+  }
+  return blob;
+}
+
+/* COMPRESS */
+document.getElementById("compressBtn").onclick=async()=>{
+  if(!originalFile) return;
+
+  const targetVal=parseInt(targetSize.value);
+  const originalKB=originalFile.size/1024;
+
+  if(mode.value==="target" && targetVal > originalKB){
+    stats.innerHTML=`<span class="error">Błąd: obraz ma ${originalKB.toFixed(1)} KB</span>`;
+    return;
+  }
+
+  progress.style.width="40%";
+
+  const bitmap=await createImageBitmap(originalFile);
+  const canvas=document.createElement("canvas");
+  canvas.width=bitmap.width;
+  canvas.height=bitmap.height;
+  canvas.getContext("2d").drawImage(bitmap,0,0);
+
+  if(mode.value==="visual"){
+    compressedBlob=await new Promise(r=>canvas.toBlob(r,"image/webp",0.88));
+  }
+
+  if(mode.value==="manual"){
+    compressedBlob=await new Promise(r=>canvas.toBlob(r,"image/webp",quality.value/100));
+  }
+
+  if(mode.value==="target"){
+    compressedBlob=await compressToTarget(canvas,targetVal);
+  }
+
+  progress.style.width="100%";
+  setTimeout(()=>progress.style.width="0%",400);
+
+  imgPreview.src=URL.createObjectURL(compressedBlob);
+
+  stats.innerHTML=`${originalKB.toFixed(1)} KB → ${(compressedBlob.size/1024).toFixed(1)} KB`;
+
+  downloadGroup.style.display="flex";
+};
+
+/* DOWNLOAD */
+function download(type){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(compressedBlob);
+  a.download="compressed."+type;
+  a.click();
+}
+
+downloadJPG.onclick=()=>download("jpg");
+downloadPNG.onclick=()=>download("png");
+downloadWEBP.onclick=()=>download("webp");
+
+/* 🔥 RESET ANIMATION */
+resetBtn.onclick=()=>{
+  imageWrap.classList.add("hide");
+
+  setTimeout(()=>{
+    imageWrap.style.display="none";
+    drop.style.display="flex";
+    stats.innerHTML="";
+    downloadGroup.style.display="none";
+    imageWrap.classList.remove("hide");
+  },300);
+};
+window.addEventListener("load", () => {
+  document.body.classList.add("loaded");
+});
+
+// FADE OUT przy kliknięciu linku
+document.querySelectorAll("a[href]").forEach(link => {
+  link.addEventListener("click", function(e) {
+    const href = this.getAttribute("href");
+
+    // pomijamy anchor (#) i nowe karty
+    if (href.startsWith("#") || this.target === "_blank") return;
+
+    e.preventDefault();
+
+    document.body.classList.add("fade-out");
+
+    setTimeout(() => {
+      window.location.href = href;
+    }, 400);
+  });
+});
+</script>
+
+</body>
+</html>

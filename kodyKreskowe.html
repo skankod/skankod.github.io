@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generator kodów kreskowych</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
+<style>
+:root{
+  --bg:#000;
+  --panel:rgba(255,255,255,0.04);
+  --text:#fff;
+  --muted:rgba(255,255,255,0.6);
+  --primary:#7c6cff;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Inter;
+  background:var(--bg);
+  color:var(--text);
+}
+
+.wrapper{
+  display:flex;
+  min-height:100vh;
+}
+
+.panel{
+  width:420px;
+  padding:1.5rem;
+  background:var(--panel);
+  border-right:1px solid rgba(255,255,255,0.08);
+  display:flex;
+  flex-direction:column;
+  gap:1rem;
+}
+
+.section{
+  display:flex;
+  flex-direction:column;
+  gap:.4rem;
+}
+
+.section-title{
+  font-size:.7rem;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  color:var(--muted);
+}
+
+input,select{
+  width:100%;
+  padding:.7rem;
+  border-radius:.8rem;
+  border:1px solid rgba(255,255,255,0.08);
+  background:#111;
+  color:#fff;
+}
+
+.btn{
+  padding:.9rem;
+  border:none;
+  border-radius:.8rem;
+  background:var(--primary);
+  color:#fff;
+  cursor:pointer;
+}
+
+.back{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:42px;
+  height:42px;
+  border-radius:12px;
+  background:#111;
+  border:1px solid rgba(255,255,255,0.1);
+  color:#fff;
+  text-decoration:none;
+  font-size:18px;
+}
+
+.preview{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:2rem;
+}
+
+.barcode-box{
+  background:#fff;
+  padding:1.5rem;
+  border-radius:1rem;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+@media (max-width:900px){
+  .wrapper{flex-direction:column;}
+  .panel{width:100%;}
+}
+
+@media (max-width:500px){
+  .barcode-box{transform:scale(.85);}
+}
+body {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+body.loaded {
+  opacity: 1;
+}
+
+body.fade-out {
+  opacity: 0;
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrapper">
+
+<div class="panel">
+
+<a href="index.html" class="back">←</a>
+
+<h2>Kody kreskowe</h2>
+
+<div class="section">
+  <div class="section-title">Typ</div>
+  <select id="format">
+    <option value="CODE128">CODE128</option>
+    <option value="EAN13">EAN-13</option>
+  </select>
+</div>
+
+<div class="section">
+  <div class="section-title">Treść</div>
+  <input id="text" placeholder="123456789012">
+</div>
+
+<div class="section">
+  <div class="section-title">Szerokość kreski</div>
+  <input type="range" id="width" min="1" max="4" value="2">
+</div>
+
+<div class="section">
+  <div class="section-title">Wysokość</div>
+  <input type="range" id="height" min="40" max="160" value="80">
+</div>
+
+<button class="btn" onclick="generate()">Generuj</button>
+<button class="btn" onclick="startFlow()">Pobierz PNG</button>
+
+</div>
+
+<div class="preview">
+  <div class="barcode-box">
+    <svg id="barcode"></svg>
+  </div>
+</div>
+
+</div>
+
+
+
+
+
+
+<div class="dl-overlay" id="dlPopup">
+  <div class="dl-modal">
+
+    <div class="dl-header">
+      <div class="dl-icon">⬇</div>
+      <div>
+        <h3>Pobieranie pliku</h3>
+        <p id="dlStage">Start...</p>
+      </div>
+    </div>
+
+    <div class="dl-bar-wrap">
+      <div class="dl-bar" id="dlBar"></div>
+    </div>
+
+    <div class="dl-percent" id="dlPercent">0%</div>
+
+    <button class="dl-cancel" onclick="cancelDownload()">
+      Anuluj pobieranie
+    </button>
+
+  </div>
+</div>
+
+<style>.dl-overlay{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  background:rgba(0,0,0,0.65);
+  backdrop-filter: blur(1.2rem);
+
+  opacity:0;
+  pointer-events:none;
+  transition:.25s;
+  z-index:9999;
+}
+
+.dl-overlay.active{
+  opacity:1;
+  pointer-events:all;
+}
+
+.dl-modal{
+  width:min(26rem, 92%);
+  padding:1.6rem;
+  border-radius:1.4rem;
+
+  background:rgba(20,20,20,0.85);
+  border:1px solid rgba(255,255,255,0.08);
+  color:#fff;
+}
+
+.dl-header{
+  display:flex;
+  gap:1rem;
+  align-items:center;
+  margin-bottom:1.2rem;
+}
+
+.dl-icon{
+  width:2.8rem;
+  height:2.8rem;
+  border-radius:0.9rem;
+
+  display:grid;
+  place-items:center;
+
+  background:rgba(124,108,255,0.15);
+  border:1px solid rgba(124,108,255,0.35);
+
+  font-size:1.3rem;
+}
+
+.dl-header h3{
+  margin:0;
+  font-size:1.05rem;
+}
+
+.dl-header p{
+  margin:0;
+  font-size:0.8rem;
+  color:rgba(255,255,255,0.6);
+}
+
+.dl-bar-wrap{
+  width:100%;
+  height:0.7rem;
+  background:rgba(255,255,255,0.08);
+  border-radius:999rem;
+  overflow:hidden;
+}
+
+.dl-bar{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#7c6cff,#a18bff);
+  border-radius:999rem;
+  transition:width .15s ease;
+}
+
+.dl-percent{
+  margin-top:0.8rem;
+  font-size:0.9rem;
+  color:rgba(255,255,255,0.7);
+}
+
+.dl-cancel{
+  margin-top:1.2rem;
+  width:100%;
+  padding:0.85rem;
+
+  border-radius:0.9rem;
+  border:1px solid rgba(255,255,255,0.1);
+
+  background:rgba(255,255,255,0.05);
+  color:#fff;
+
+  cursor:pointer;
+  transition:.2s;
+}
+
+.dl-cancel:hover{
+  background:rgba(255,255,255,0.08);
+}</style>
+
+<script>
+let progress = 0;
+let timer = null;
+let cancelled = false;
+
+function download(){
+  startFlow();
+}
+
+function startFlow(){
+  progress = 0;
+  cancelled = false;
+
+  document.getElementById("dlPopup").classList.add("active");
+
+  timer = setInterval(() => {
+    if(cancelled) return;
+
+    // FAZY PROGRESSU
+    if(progress < 20){
+      progress += Math.random()*3;
+      setStage("Startowanie...");
+    }
+    else if(progress < 60){
+      progress += Math.random()*2.5;
+      setStage("Przetwarzanie pliku...");
+    }
+    else if(progress < 90){
+      progress += Math.random()*1.5;
+      setStage("Finalizacja...");
+    }
+    else{
+      progress += Math.random()*0.8;
+      setStage("Dopracowywanie jakości...");
+    }
+
+    if(progress >= 100){
+      progress = 100;
+      update();
+      clearInterval(timer);
+      setTimeout(realDownload, 250);
+      return;
+    }
+
+    update();
+  }, 80);
+}
+
+function update(){
+  document.getElementById("dlBar").style.width = progress + "%";
+  document.getElementById("dlPercent").innerText = Math.floor(progress) + "%";
+}
+
+function setStage(text){
+  document.getElementById("dlStage").innerText = text;
+}
+
+function cancelDownload(){
+  cancelled = true;
+  clearInterval(timer);
+  document.getElementById("dlPopup").classList.remove("active");
+}
+
+function realDownload(){
+  document.getElementById("dlPopup").classList.remove("active");
+
+  const svg = document.getElementById("barcode");
+  const xml = new XMLSerializer().serializeToString(svg);
+
+  const img = new Image();
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  img.onload = function(){
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img,0,0);
+
+    const a = document.createElement("a");
+    a.download = "barcode.png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+  };
+
+  img.src = "data:image/svg+xml;base64," + btoa(xml);
+}
+</script>
+
+<script>
+
+const barcodeEl = document.getElementById("barcode");
+const textInput = document.getElementById("text");
+
+function generate(){
+
+  const format = document.getElementById("format").value;
+  let value = textInput.value.trim();
+
+  // fallback
+  if(!value) value = "123456789012";
+
+  // 🔥 EAN13 FIX (live, bez blokowania inputa)
+  if(format === "EAN13"){
+    value = value.replace(/\D/g, "").slice(0, 12);
+  }
+
+  try{
+    JsBarcode(barcodeEl, value, {
+      format,
+      lineColor:"#000",
+      background:"#fff",
+      width:+document.getElementById("width").value,
+      height:+document.getElementById("height").value,
+      displayValue:true
+    });
+  }catch(e){
+    // brak alertów = brak crashy UX
+    console.log("barcode error");
+  }
+}
+
+/* LIVE UPDATE */
+document.addEventListener("input", generate);
+
+/* START */
+generate();
+
+/* DOWNLOAD */
+function download(){
+  const svg = barcodeEl;
+  const xml = new XMLSerializer().serializeToString(svg);
+
+  const img = new Image();
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  img.onload = function(){
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img,0,0);
+
+    const a = document.createElement("a");
+    a.download = "barcode.png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+  };
+
+  img.src = "data:image/svg+xml;base64," + btoa(xml);
+}
+
+window.addEventListener("load", () => {
+  document.body.classList.add("loaded");
+});
+
+// FADE OUT przy kliknięciu linku
+document.querySelectorAll("a[href]").forEach(link => {
+  link.addEventListener("click", function(e) {
+    const href = this.getAttribute("href");
+
+    // pomijamy anchor (#) i nowe karty
+    if (href.startsWith("#") || this.target === "_blank") return;
+
+    e.preventDefault();
+
+    document.body.classList.add("fade-out");
+
+    setTimeout(() => {
+      window.location.href = href;
+    }, 400);
+  });
+});
+</script>
+
+</body>
+</html>
